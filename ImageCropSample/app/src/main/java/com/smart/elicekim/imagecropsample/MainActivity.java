@@ -1,8 +1,14 @@
 package com.smart.elicekim.imagecropsample;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Environment;
+import android.os.PersistableBundle;
+import android.provider.MediaStore;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -12,8 +18,10 @@ import android.widget.Toast;
 import com.tbruyelle.rxpermissions2.Permission;
 import com.tbruyelle.rxpermissions2.RxPermissions;
 import com.theartofdev.edmodo.cropper.CropImage;
+import com.theartofdev.edmodo.cropper.CropImageView;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -23,6 +31,7 @@ import io.reactivex.functions.Predicate;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_SELECT_PICTURE = 1001;
+    private static final int REQUEST_IMAGE_CAPTURE = 1002;
     private File mFile;
 
     @Override
@@ -79,7 +88,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startCamera() {
+        mFile = newFile();
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
+        Uri outputMediaFileUri = ImageUtils.getOutputMediaFileUri(MainActivity.this, mFile);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, outputMediaFileUri);
+
+        startActivityForResult(intent, REQUEST_IMAGE_CAPTURE);
     }
 
     private void pickGallery() {
@@ -92,6 +107,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
+        super.onSaveInstanceState(outState, outPersistentState);
+        //저장
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        //
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_SELECT_PICTURE) {
             if (resultCode == RESULT_OK) {
@@ -100,9 +127,18 @@ public class MainActivity extends AppCompatActivity {
             } else if (resultCode == CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE) {
 //                Exception error = result.getError();
             }
-        }else if(requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE){
+        } else if (requestCode == REQUEST_IMAGE_CAPTURE) {
+            Uri imageUri = ImageUtils.getOutputMediaFileUri(MainActivity.this, mFile);
+//            data.getExtras().get("data");
+            startCropActivity(imageUri);
+        }
+        else if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE) {
             handleCropResult(data);
         }
+    }
+
+    private void startCropActivity(Object data) {
+
     }
 
     private void handleCropResult(Intent data) {
@@ -116,6 +152,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void startCropActivity(Uri data) {
         CropImage.activity(data)
+                .setFixAspectRatio(true)
                 .start(this);
     }
 
@@ -125,5 +162,16 @@ public class MainActivity extends AppCompatActivity {
         String bucketName = "vinglePic";
 
         return ImageUtils.getOutputMediaFile(bucketName, imageName);
+    }
+
+    Uri getUri(Intent intent) {
+        Uri uri = intent.getData();
+        Bitmap bitmap = null;
+        try {
+            bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), uri);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return uri;
     }
 }
